@@ -42,7 +42,16 @@ INSTALLED_APPS = [
     'django.contrib.staticfiles',
     'vehicle',
     'widget_tweaks',
+    'ninja',
+    'corsheaders',
+    'ninja_jwt',
 ]
+
+# JWT setiings
+
+
+
+
 
 MIDDLEWARE = [
     'django.middleware.security.SecurityMiddleware',
@@ -52,7 +61,18 @@ MIDDLEWARE = [
     'django.contrib.auth.middleware.AuthenticationMiddleware',
     'django.contrib.messages.middleware.MessageMiddleware',
     'django.middleware.clickjacking.XFrameOptionsMiddleware',
+    'corsheaders.middleware.CorsMiddleware',
 ]
+
+# CORS settings 
+CORS_ALLOWED_ORIGINS = [
+    "http://localhost:3000",   #nextjs frontend url
+]
+CORS_ALLOW_ALL_ORIGINS = False  #security purpose
+
+CORS_ALLOW_CREDENTIALS = True
+
+
 
 ROOT_URLCONF = 'vehicleservicemanagement.urls'
 
