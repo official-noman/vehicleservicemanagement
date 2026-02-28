@@ -17,7 +17,10 @@ class UserIn(Schema):
     last_name: str
     username: str
     password: str
-
+    email: EmailStr
+    phone_number: Optional[str] = None
+    
+    
     @field_validator("password")
     @classmethod
     def password_min_length(cls, v: str) -> str:

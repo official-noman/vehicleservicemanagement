@@ -49,3 +49,6 @@ class FrontendAppView(TemplateView):
 
 def health_check(request):
     return HttpResponse("ok", content_type="text/plain")
+
+# def home_view(request):
+#     return redirect('adminlogin')
