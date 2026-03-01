@@ -42,7 +42,6 @@ from .schemas import (
 api = NinjaExtraAPI(title="Vehicle Service API", csrf=False)  # instead of ninja api
 
 
-
 @api.exception_handler(ValidationError)
 def validation_error_handler(request, exc):
     print("\n===== NINJA VALIDATION ERROR =====")
@@ -55,6 +54,7 @@ def validation_error_handler(request, exc):
         },
         status=400,
     )
+
 
 # automatic token generate and refresh endpoints provided by NinjaJWTDefaultController
 api.register_controllers(NinjaJWTDefaultController)
@@ -146,7 +146,12 @@ def _create_user(user_data) -> User:
     tags=["Auth"],
 )
 def register_customer(request, payload: CustomerRegistrationIn):
+    print("\n====== [1] START REGISTRATION FLOW ======")
+    print(f"-> Email received from frontend: {payload.user.email}")
+    print(f"-> Username received from frontend: {payload.user.username}")
+
     if User.objects.filter(username=payload.user.username).exists():
+        print("-> Error: Username already taken.")
         return 400, {"detail": "Username already taken."}
     if User.objects.filter(email=payload.user.email).exists():
         return 400, {"detail": "Email already registered."}
@@ -161,6 +166,9 @@ def register_customer(request, payload: CustomerRegistrationIn):
 
             # ২. ৬ সংখ্যার random OTP তৈরি করুন
             otp = str(random.randint(100000, 999999))
+            print(f"====== [2] DB CREATION ======")
+            print(f"-> User saved to DB. Active state: {user.is_active}")
+            print(f"-> Generated OTP: {otp}")
 
             customer = models.Customer.objects.create(
                 user=user,
@@ -171,8 +179,9 @@ def register_customer(request, payload: CustomerRegistrationIn):
             )
             group, _ = Group.objects.get_or_create(name="CUSTOMER")
             group.user_set.add(user)
+            print("-> Customer and Group assignment successful!")
     except Exception as db_err:
-        print(f"[Register DB Error] {db_err}")
+        print(f"\n====== [DB ERROR] ======\n{db_err}\n========================\n")
         return 400, {"detail": f"Registration failed: {str(db_err)}"}
 
     # ৩. OTP HTML ইমেইলে পাঠান (inline styles — email client compatible)
@@ -196,6 +205,10 @@ def register_customer(request, payload: CustomerRegistrationIn):
 </body>
 </html>"""
 
+    print("\n====== [3] SENDING EMAIL ======")
+    print(f"-> Using HOST_USER: {settings.EMAIL_HOST_USER}")
+    print(f"-> Sending to: {user.email}")
+
     try:
         send_mail(
             subject="Verify Your Account - IGL Web",
@@ -205,10 +218,14 @@ def register_customer(request, payload: CustomerRegistrationIn):
             fail_silently=False,
             html_message=html_message,
         )
+        print("-> Output: Email sent successfully! 🚀")
+        print("====== REGISTRATION FLOW COMPLETED ======\n")
     except Exception as e:
         # Email পাঠাতে সমস্যা হলেও registration সফল থাকবে,
         # কিন্তু error log করা হবে
-        print(f"[OTP Email Error] {e}")
+        print(
+            f"\n====== [CRITICAL EMAIL ERROR] ======\nReason: {e}\n======================================\n"
+        )
 
     return 201, customer
 

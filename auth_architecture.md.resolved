@@ -1,0 +1,124 @@
+# Authentication Architecture: Register, OTP, & Login
+
+This document visually explains how the data flows between your Next.js Frontend and your Django Ninja Backend.
+
+## 1. Registration Flow
+
+When a user submits the registration form, here is how the system handles it:
+
+```mermaid
+sequenceDiagram
+    participant User
+    participant NextJS as Frontend (app/register/page.tsx)
+    participant Django as Backend (vehicle/api.py)
+    participant DB as SQLite DB
+    participant Email as SMTP Email Server
+
+    User->>NextJS: Fill form & click "Create Account"
+    Note over NextJS: handleRegister() 
+    NextJS->>Django: POST /api/auth/register/customer (Payload: User Info)
+    Note over Django: register_customer()
+    
+    Django->>DB: Check if username/email exists?
+    
+    alt User Already Exists
+        DB-->>Django: Found!
+        Django-->>NextJS: 400 Bad Request (Error)
+        NextJS-->>User: Show Error Message
+    else New User
+        Django->>DB: 1. Create User (is_active=False)
+        Django->>DB: 2. Create Customer (is_verified=False, otp=123456)
+        Django->>Email: send_mail(OTP: 123456)
+        Email-->>User: Receive OTP Code
+        Django-->>NextJS: 201 Created (Success)
+        Note over NextJS: router.push('/verify-otp')
+        NextJS-->>User: Redirect to Verify OTP Page
+    end
+```
+
+### Key Code Locations (Registration):
+*   **Frontend Data Preparation:** [frontend/app/register/page.tsx](file:///d:/Car%20repair%20service/vehicleservicemanagement/frontend/app/register/page.tsx)
+    *   Look for `const payload = { user: { ... }, profile: { ... } };` inside [handleRegister](file:///d:/Car%20repair%20service/vehicleservicemanagement/frontend/app/register/page.tsx#30-70).
+*   **Backend Endpoint:** [vehicle/api.py](file:///d:/Car%20repair%20service/vehicleservicemanagement/vehicle/api.py)
+    *   Check lines under `@api.post("/auth/register/customer")`. 
+    *   This is where `user.is_active = False` is set, the random OTP is generated, and the email HTML is composed.
+
+---
+
+## 2. OTP Verification Flow
+
+Once the user is on the OTP page and enters their code:
+
+```mermaid
+sequenceDiagram
+    participant User
+    participant NextJS as Frontend (app/verify-otp/page.tsx)
+    participant Django as Backend (vehicle/api.py)
+    participant DB as SQLite DB
+
+    User->>NextJS: Enter 6-digit OTP & Click "Verify"
+    Note over NextJS: handleVerify()
+    NextJS->>Django: POST /api/auth/verify-otp (email, otp)
+    Note over Django: verify_otp()
+    
+    Django->>DB: Find Customer by Email
+    DB-->>Django: Customer Data (otp_code: 123456)
+    
+    alt OTP Does Not Match
+        Django-->>NextJS: 400 Bad Request (Invalid OTP)
+        NextJS-->>User: Show Error "Invalid OTP"
+    else OTP Matches
+        Django->>DB: 1. Update User (is_active=True)
+        Django->>DB: 2. Update Customer (is_verified=True, otp="")
+        Django-->>NextJS: 200 OK (Success)
+        Note over NextJS: setTimeout(() => router.push('/login'), 1500)
+        NextJS-->>User: Show "Verified!" -> Redirect Login
+    end
+```
+
+### Key Code Locations (OTP):
+*   **Frontend Submission:** [frontend/app/verify-otp/page.tsx](file:///d:/Car%20repair%20service/vehicleservicemanagement/frontend/app/verify-otp/page.tsx)
+    *   Look for `await verifyOtp({ email, otp: code });` inside the [handleVerify](file:///d:/Car%20repair%20service/vehicleservicemanagement/frontend/app/verify-otp/page.tsx#50-76) function.
+*   **Backend Endpoint:** [vehicle/api.py](file:///d:/Car%20repair%20service/vehicleservicemanagement/vehicle/api.py)
+    *   Check lines under `@api.post("/auth/verify-otp")`.
+    *   This is where `if customer.otp_code != payload.otp:` is checked, and `user.is_active = True` is updated.
+
+---
+
+## 3. Login Flow
+
+After the account is active, the user moves to the login securely:
+
+```mermaid
+sequenceDiagram
+    participant User
+    participant NextJS as Frontend (app/login/page.tsx)
+    participant Django as Backend (vehicle/api.py)
+    participant DB as SQLite DB
+
+    User->>NextJS: Enter Username & Password
+    Note over NextJS: handleLogin()
+    NextJS->>Django: POST /api/auth/login (username, password)
+    Note over Django: login()
+    
+    Django->>DB: Django authenticate(username, password)
+    Note over Django: Checks if password matches AND is_active=True
+    
+    alt Invalid Credentials / Not Verified
+        Django-->>NextJS: 401 Unauthorized
+        NextJS-->>User: Show Error "Invalid credentials"
+    else Valid Credentials
+        Django->>Django: Generate RefreshToken & AccessToken
+        Django->>Django: Determine Role (admin, customer, mechanic)
+        Django-->>NextJS: 200 OK (access, refresh, role, user_data)
+        Note over NextJS: Save tokens (LocalStorage / Cookies)
+        Note over NextJS: router.push('/dashboard')
+        NextJS-->>User: Redirect to Dashboard
+    end
+```
+
+### Key Code Locations (Login):
+*   **Backend Endpoint:** [vehicle/api.py](file:///d:/Car%20repair%20service/vehicleservicemanagement/vehicle/api.py)
+    *   Check lines under `@api.post("/auth/login")`.
+    *   Notice `user = authenticate(username=payload.username, password=payload.password)`. If the user never verified their OTP, `is_active` remains `False`, and `authenticate()` will return `None`, blocking the login!
+    *   Notice `refresh = RefreshToken.for_user(user)` where the secure JWT tokens are created.
