@@ -2,7 +2,7 @@
 import { useState, useRef, useEffect } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { registerCustomer, verifyOtp } from "@/lib/api";
+import { registerCustomer } from "@/lib/api";
 import PhoneInput from "@/components/ui/PhoneInput";
 
 // ─── Types ───────────────────────────────────────────────────────────────────
@@ -16,217 +16,6 @@ interface FormData {
   address: string;
 }
 
-// ─── OTP Modal ───────────────────────────────────────────────────────────────
-function OtpModal({
-  email,
-  onVerified,
-  onClose,
-}: {
-  email: string;
-  onVerified: () => void;
-  onClose: () => void;
-}) {
-  const router = useRouter();
-  const [otp, setOtp] = useState(["", "", "", "", "", ""]);
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState("");
-  const [success, setSuccess] = useState(false);
-  const inputRefs = useRef<(HTMLInputElement | null)[]>([]);
-
-  // Auto-focus first box on open
-  useEffect(() => {
-    inputRefs.current[0]?.focus();
-  }, []);
-
-  const handleChange = (index: number, value: string) => {
-    // Accept only digits
-    if (!/^\d?$/.test(value)) return;
-    const next = [...otp];
-    next[index] = value;
-    setOtp(next);
-    setError("");
-    // Move to next box
-    if (value && index < 5) {
-      inputRefs.current[index + 1]?.focus();
-    }
-  };
-
-  const handleKeyDown = (index: number, e: React.KeyboardEvent) => {
-    if (e.key === "Backspace" && !otp[index] && index > 0) {
-      inputRefs.current[index - 1]?.focus();
-    }
-  };
-
-  const handlePaste = (e: React.ClipboardEvent) => {
-    e.preventDefault();
-    const pasted = e.clipboardData.getData("text").replace(/\D/g, "").slice(0, 6);
-    const next = [...otp];
-    pasted.split("").forEach((ch, i) => { next[i] = ch; });
-    setOtp(next);
-    inputRefs.current[Math.min(pasted.length, 5)]?.focus();
-  };
-
-  const handleVerify = async () => {
-    const code = otp.join("");
-    if (code.length < 6) {
-      setError("Please enter the complete 6-digit code.");
-      return;
-    }
-    setLoading(true);
-    setError("");
-    try {
-      await verifyOtp({ email, otp: code });
-      setSuccess(true);
-      setTimeout(() => {
-        onVerified();
-        router.push("/login");
-      }, 1500);
-    } catch {
-      setError("Invalid OTP. Please check your email and try again.");
-      setOtp(["", "", "", "", "", ""]);
-      inputRefs.current[0]?.focus();
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  return (
-    /* Backdrop */
-    <div
-      className="fixed inset-0 z-50 flex items-center justify-center p-4"
-      style={{
-        backgroundColor: "rgba(0,0,0,0.85)",
-        backdropFilter: "blur(6px)",
-        animation: "backdropIn 0.2s ease forwards",
-      }}
-    >
-      {/* Animated modal card */}
-      <div
-        className="relative w-full max-w-md rounded-2xl p-8 border"
-        style={{
-          background: "linear-gradient(145deg, #111111, #1a1a1a)",
-          borderColor: "#d4af37",
-          boxShadow: "0 0 60px rgba(212,175,55,0.12), 0 20px 60px rgba(0,0,0,0.6)",
-          animation: "modalIn 0.3s cubic-bezier(0.34, 1.56, 0.64, 1) forwards",
-        }}
-      >
-        {/* Keyframe definitions */}
-        <style>{`
-          @keyframes backdropIn {
-            from { opacity: 0; }
-            to   { opacity: 1; }
-          }
-          @keyframes modalIn {
-            from { opacity: 0; transform: translateY(24px) scale(0.96); }
-            to   { opacity: 1; transform: translateY(0) scale(1); }
-          }
-          @keyframes successPop {
-            0%   { transform: scale(0.5); opacity: 0; }
-            70%  { transform: scale(1.15); }
-            100% { transform: scale(1); opacity: 1; }
-          }
-          .success-icon { animation: successPop 0.4s cubic-bezier(0.34, 1.56, 0.64, 1) forwards; }
-        `}</style>
-        {/* Close button */}
-        <button
-          onClick={onClose}
-          className="absolute top-4 right-4 text-zinc-500 hover:text-amber-400 text-lg transition-colors"
-          aria-label="Close"
-        >
-          ✕
-        </button>
-
-        {/* Gold accent top bar */}
-        <div
-          className="absolute top-0 left-0 right-0 h-[2px] rounded-t-2xl"
-          style={{ background: "linear-gradient(90deg, transparent, #d4af37, transparent)" }}
-        />
-
-        {success ? (
-          /* Success state */
-          <div className="text-center py-6">
-            <div className="text-5xl mb-4 success-icon inline-block">✅</div>
-            <h2 className="text-2xl font-light text-amber-400 tracking-wider mb-2">Verified!</h2>
-            <p className="text-zinc-400 text-sm">Redirecting you to login…</p>
-          </div>
-        ) : (
-          <>
-            {/* Icon */}
-            <div className="flex justify-center mb-5">
-              <div
-                className="w-14 h-14 rounded-full flex items-center justify-center text-2xl"
-                style={{ background: "rgba(212,175,55,0.1)", border: "1px solid rgba(212,175,55,0.3)" }}
-              >
-                📧
-              </div>
-            </div>
-
-            {/* Heading */}
-            <div className="text-center mb-6">
-              <h2 className="text-2xl font-light tracking-wider text-amber-400 mb-1">
-                Verify Your Email
-              </h2>
-              <p className="text-zinc-400 text-sm">
-                We sent a 6-digit code to
-              </p>
-              <p className="text-amber-300 text-sm font-medium mt-1 truncate">{email}</p>
-            </div>
-
-            {/* OTP boxes */}
-            <div className="flex justify-center gap-3 mb-6" onPaste={handlePaste}>
-              {otp.map((digit, i) => (
-                <input
-                  key={i}
-                  ref={(el) => { inputRefs.current[i] = el; }}
-                  type="text"
-                  inputMode="numeric"
-                  maxLength={1}
-                  value={digit}
-                  onChange={(e) => handleChange(i, e.target.value)}
-                  onKeyDown={(e) => handleKeyDown(i, e)}
-                  className="w-11 h-14 text-center text-xl font-bold rounded-lg border-2 transition-all duration-200 focus:outline-none"
-                  style={{
-                    background: "#0d0d0d",
-                    borderColor: digit ? "#d4af37" : "rgba(255,255,255,0.1)",
-                    color: "#f0c940",
-                    caretColor: "#d4af37",
-                    boxShadow: digit ? "0 0 12px rgba(212,175,55,0.2)" : "none",
-                  }}
-                />
-              ))}
-            </div>
-
-            {/* Error */}
-            {error && (
-              <p className="text-center text-red-400 text-xs mb-4 bg-red-900/20 border border-red-800/40 rounded-lg py-2 px-3">
-                {error}
-              </p>
-            )}
-
-            {/* Verify button */}
-            <button
-              onClick={handleVerify}
-              disabled={loading || otp.join("").length < 6}
-              className="w-full py-3 rounded-lg font-semibold text-sm tracking-wider uppercase transition-all duration-200 disabled:opacity-40 disabled:cursor-not-allowed"
-              style={{
-                background: loading ? "rgba(212,175,55,0.6)" : "linear-gradient(135deg, #d4af37, #b8942a)",
-                color: "#000000",
-                boxShadow: "0 4px 20px rgba(212,175,55,0.25)",
-              }}
-            >
-              {loading ? "Verifying…" : "Verify & Activate"}
-            </button>
-
-            {/* Resend hint */}
-            <p className="text-center text-zinc-600 text-xs mt-4">
-              Didn&apos;t receive the code? Check your spam folder.
-            </p>
-          </>
-        )}
-      </div>
-    </div>
-  );
-}
 
 // ─── Register Page ────────────────────────────────────────────────────────────
 export default function RegisterPage() {
@@ -236,7 +25,7 @@ export default function RegisterPage() {
   });
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
-  const [showOtpModal, setShowOtpModal] = useState(false);
+  const router = useRouter();
 
   const handleRegister = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -259,7 +48,7 @@ export default function RegisterPage() {
 
     try {
       await registerCustomer(payload);
-      setShowOtpModal(true); // Open OTP modal — do NOT redirect yet
+      router.push(`/verify-otp?email=${encodeURIComponent(formData.email)}`); // Redirect to new auth flow tab
     } catch (err: unknown) {
       if (
         err &&
@@ -289,14 +78,6 @@ export default function RegisterPage() {
 
   return (
     <>
-      {/* OTP Modal */}
-      {showOtpModal && (
-        <OtpModal
-          email={formData.email}
-          onVerified={() => setShowOtpModal(false)}
-          onClose={() => setShowOtpModal(false)}
-        />
-      )}
 
       <div className="min-h-screen flex items-center justify-center p-4" style={{ background: "#080808" }}>
         {/* Gold glow orb */}
