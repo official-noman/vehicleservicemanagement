@@ -17,19 +17,14 @@ const fadeUp = {
 
 export default function LoginPage() {
   const router = useRouter();
-  const [role, setRole] = useState("customer");
+  const [role] = useState("customer");
   const [step, setStep] = useState(1);
   const [formData, setFormData] = useState({ username: "", password: "", otp: "" });
   const [focused, setFocused] = useState<string | null>(null);
 
   const handleLoginSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-
-    if (role === "customer" && step === 1) {
-      setStep(2);
-      return;
-    }
-
+    // Direct login with username + password
     try {
       const data = await loginuser({
         username: formData.username,
@@ -41,7 +36,8 @@ export default function LoginPage() {
       localStorage.setItem("userRole", data.role);
 
       alert("Login Successful!");
-      router.push("/customer/dashboard");
+      // Navigate to dashboard app route
+      router.push("/dashboard");
     } catch (error) {
       alert("Login Failed! Check your credentials.");
       console.error(error);
@@ -64,11 +60,11 @@ export default function LoginPage() {
           }}
         />
         {/* Gradient overlays */}
-        <div className="absolute inset-0 bg-gradient-to-r from-[#050505]/80 via-[#050505]/40 to-transparent" />
-        <div className="absolute inset-0 bg-gradient-to-t from-[#050505]/90 via-transparent to-[#050505]/30" />
+        <div className="absolute inset-0 bg-linear-to-r from-[#050505]/80 via-[#050505]/40 to-transparent" />
+        <div className="absolute inset-0 bg-linear-to-t from-[#050505]/90 via-transparent to-[#050505]/30" />
 
         {/* Gold vertical accent line */}
-        <div className="absolute right-0 top-0 bottom-0 w-[1px] bg-gradient-to-b from-transparent via-[#D4AF37]/60 to-transparent" />
+        <div className="absolute right-0 top-0 bottom-0 w-px bg-linear-to-b from-transparent via-[#D4AF37]/60 to-transparent" />
 
         {/* Top logo mark */}
         <motion.div
@@ -92,7 +88,7 @@ export default function LoginPage() {
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 1, delay: 0.3, ease: [0.22, 1, 0.36, 1] }}
           >
-            <div className="w-12 h-[2px] bg-[#D4AF37] mb-5" />
+            <div className="w-12 h-0.5 bg-[#D4AF37] mb-5" />
             <h2 className="text-5xl font-black tracking-tight leading-none text-white uppercase">
               EXCELLENCE
               <br />
@@ -152,7 +148,7 @@ export default function LoginPage() {
           >
             {/* Slide-in gold shimmer */}
             <span className="absolute inset-0 -translate-x-full group-hover:translate-x-0 bg-[#D4AF37] transition-transform duration-500 ease-[cubic-bezier(0.22,1,0.36,1)]" />
-            <Chrome size={18} className="relative z-10 flex-shrink-0" />
+            <Chrome size={18} className="relative z-10 shrink-0" />
             <span className="relative z-10">Continue with Google</span>
           </motion.button>
 
@@ -164,11 +160,11 @@ export default function LoginPage() {
             animate="visible"
             className="flex items-center gap-4 mb-8"
           >
-            <div className="flex-1 h-[1px] bg-white/10" />
+            <div className="flex-1 h-px bg-white/10" />
             <span className="text-white/30 text-[10px] tracking-[0.2em] uppercase whitespace-nowrap font-light">
               Or continue with email
             </span>
-            <div className="flex-1 h-[1px] bg-white/10" />
+            <div className="flex-1 h-px bg-white/10" />
           </motion.div>
 
           {/* Form */}
@@ -192,7 +188,7 @@ export default function LoginPage() {
                     >
                       <Mail
                         size={15}
-                        className={`flex-shrink-0 transition-colors duration-300 ${
+                        className={`shrink-0 transition-colors duration-300 ${
                           focused === "username" ? "text-[#D4AF37]" : "text-white/30"
                         }`}
                       />
@@ -228,7 +224,7 @@ export default function LoginPage() {
                     >
                       <Lock
                         size={15}
-                        className={`flex-shrink-0 transition-colors duration-300 ${
+                        className={`shrink-0 transition-colors duration-300 ${
                           focused === "password" ? "text-[#D4AF37]" : "text-white/30"
                         }`}
                       />
@@ -274,7 +270,7 @@ export default function LoginPage() {
                     >
                       <KeyRound
                         size={15}
-                        className={`flex-shrink-0 transition-colors duration-300 ${
+                        className={`shrink-0 transition-colors duration-300 ${
                           focused === "otp" ? "text-[#D4AF37]" : "text-white/30"
                         }`}
                       />
@@ -356,7 +352,7 @@ export default function LoginPage() {
           >
             Privacy Policy
           </Link>
-          <div className="w-[3px] h-[3px] rounded-full bg-white/20" />
+          <div className="w-0.75 h-0.75 rounded-full bg-white/20" />
           <Link
             href="/terms"
             className="text-white/20 text-[10px] tracking-widest uppercase hover:text-white/50 transition-colors duration-200"
